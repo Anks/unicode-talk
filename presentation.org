@@ -7,7 +7,8 @@ In today's world, everything is in unicode.
 You might not think you need unicode, but you do.
 
 - What happens when someone tries to add a emoji in your comment box?
-- What happens if you have users who have spécial characters in their names?
+- What happens if you have users who have spécial characters in their
+  names?
 - What about all the people who don't speak english?
 
 * What the hell is unicode
@@ -55,26 +56,32 @@ So, think of encoding as a function that takes a series of characters
 
 #+END_SRC
 
-UTF-8 is an encoding. UT8-16 is another encoding. There are many types of encodings.
+UTF-8 is an encoding. UT8-16 is another encoding. There are many types
+of encodings.
 
-Please note that the byte array itself may not have any indication of which encoding is being used. We will come back to this point later.
+Please note that the byte array itself may not have any indication of
+which encoding is being used. We will come back to this point later.
 
 
 ** UTF-8
 
-UTF-8 is a great hack. I love UTF-8.
+qUTF-8 is a great hack. I love UTF-8.
 
 - UTF-8 is a variable length encoding
 
-  What this means is that each unicode character may take 1 byte to represent, or it may take 2, 3 or even 4 bytes. 
+  What this means is that each unicode character may take 1 byte to
+  represent, or it may take 2, 3 or even 4 bytes.
 
-  This means that the length of the byte array is not the length of the string!
+  This means that the length of the byte array is not the length of the
+  string!
 
 - UTF-8 is compatible with ASCII.
 
-  So, all ASCII characters are represented in 1 byte, with the same byte value.
+  So, all ASCII characters are represented in 1 byte, with the same byte
+  value.
 
-  This makes it backwards compatible with a lot of systems, and also saves memory / disk space if your text contains english predominantly.
+  This makes it backwards compatible with a lot of systems, and also
+  saves memory / disk space if your text contains english predominantly.
 
 ** UTF-16 (and UCS-2)
 
@@ -113,7 +120,8 @@ they would not be able to show this symbol.
 
 ** Wrong encoding being picked up
 
-This is the absolute most common issue you'll see. Open a page, and you see random characters.
+This is the absolute most common issue you'll see. Open a page, and you
+see random characters.
 
 [[./bad-encoding.png]]
 
@@ -123,15 +131,21 @@ Example files: [[file:bad-encoding.html][bad-encoding.html]], [[file:good-encodi
 
 To prevent:
 
-- Be very clear when you read data from user. Whether it's a form submit, a REST API, or reading files, you need to know what the input encoding it.
-- Always, always use utf-8. Normalize user input to utf-8 and store it. Respond to user with utf-8 always.
-- Servers should define response content type in the HTTP Response (most frameworks will do this automatically)
-- HTML pages should define content type in the HTML body (default is UTF-8, so you only need to define if the body is *not* UTF-8)
+- Be very clear when you read data from user. Whether it's a form
+  submit, a REST API, or reading files, you need to know what the input
+  encoding it.
+- Always, always use utf-8. Normalize user input to utf-8 and store it.
+  Respond to user with utf-8 always.
+- Servers should define response content type in the HTTP Response (most
+  frameworks will do this automatically)
+- HTML pages should define content type in the HTML body (default is
+  UTF-8, so you only need to define if the body is *not* UTF-8)
 - Be careful about mixing encodings! *Just use utf-8*.
 
 ** Language specific quirks
 
-This is a fun little exercise. What should happen if I run this piece of JS code?
+This is a fun little exercise. What should happen if I run this piece of
+JS code?
 
 #+BEGIN_SRC js
 
@@ -157,24 +171,31 @@ How about F#?
   printfn "Len of 😞 is %d" "😞".Length
 #+END_SRC
 
-Something as simple as getting the length of a string will give you different results in different languages.
+Something as simple as getting the length of a string will give you
+different results in different languages.
 
-There are tons of different quirks like this. You need to understand how the language you work with deals with unicode.
+There are tons of different quirks like this. You need to understand how
+the language you work with deals with unicode.
 
-It's a complex enough topic that python made backwards incompatible changes (python3) in order to properly support unicode!
+It's a complex enough topic that python made backwards incompatible
+changes (python3) in order to properly support unicode!
 
 ** Language and platform specific quirks
 
 One example here is UTF-8 [[https://en.wikipedia.org/wiki/Byte_order_mark][Byte Order Mark]].
 
-It's added to the start of files by some programs (and some operating systems) to indicate that it contains unicode data, in either UTF-8 or UTF-16 format.
+It's added to the start of files by some programs (and some operating
+systems) to indicate that it contains unicode data, in either UTF-8 or
+UTF-16 format.
 
 It's the character U+FEFF.
 
 - In UTF-8, it's represented by 3 bytes: 0xEF, 0xBB, 0xBF
-- In UTF-16, it's represented on-disk as 0xFE 0xFF (big-endian) or 0xFF 0xFE (little-endian)
+- In UTF-16, it's represented on-disk as 0xFE 0xFF (big-endian) or 0xFF
+  0xFE (little-endian)
 
-Unfortunately, it is often missing, or present but with wrong values. Some tools do not understand it, some tools add it without asking, etc.
+Unfortunately, it is often missing, or present but with wrong values.
+Some tools do not understand it, some tools add it without asking, etc.
 
 It's not recommended to use the BOM, but you may need to deal with it.
 
@@ -198,13 +219,16 @@ this type of attack though.
 ** Practical example
 *** Normalization
 
-While parsing form-16, we need to normalize all unicode spaces, hyphens, etc to make it easy to parse.
+While parsing form-16, we need to normalize all unicode spaces, hyphens,
+etc to make it easy to parse.
 
-We chose the option of converting unicode characters to equivalent ASCII and then parsing, instead of making entire parser aware of unicode.
+We chose the option of converting unicode characters to equivalent ASCII
+and then parsing, instead of making entire parser aware of unicode.
 
 *** Full text search
 
-If you search for 'fiance', you should also get results if the text contains 'fiancé'
+If you search for 'fiance', you should also get results if the text
+contains 'fiancé'
 
 This is a hard problem.
 
@@ -287,9 +311,11 @@ are tons of resources on the internet.
 
 - http://chardet.readthedocs.io/en/latest/faq.html
 
-  chardet is a python library that can 'guess' the encoding of a input stream of bytes.
+  chardet is a python library that can 'guess' the encoding of a input
+  stream of bytes.
 
-  There are ports for other languages. Use only when dealing with unstructured data or third party sources!
+  There are ports for other languages. Use only when dealing with
+  unstructured data or third party sources!
 
 - https://speakerdeck.com/mathiasbynens/hacking-with-unicode-in-2016
 
