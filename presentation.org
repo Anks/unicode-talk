@@ -1,0 +1,307 @@
+Unicode for ASCII folks
+
+* Why do you need to learn about unicode
+
+In today's world, everything is in unicode.
+
+You might not think you need unicode, but you do.
+
+- What happens when someone tries to add a emoji in your comment box?
+- What happens if you have users who have spécial characters in their names?
+- What about all the people who don't speak english?
+
+* What the hell is unicode
+** History
+
+- Wild west
+- ASCII
+- 256 characters are enough for everyone, right?
+- Code pages. Extended code pages
+- Unicode
+
+** Unicode
+
+Unicode just defines these things:
+
+- A code point: think of it as an array index
+- A character name
+- A reference glyph (how it /should/ look)
+
+Example:
+
+| Code Point | Letter Name            | Example | Hex Code |
+|------------+------------------------+---------+----------|
+|         65 | LATIN CAPITAL LETTER A | A       | 0x41     |
+|        181 | MICRO SIGN             | µ       | 0xb5     |
+|       8377 | INDIAN RUPEE SIGN      | ₹       | 0x20b9   |
+|     128542 | DISAPPOINTED FACE      | 😞      | 0x1f61e  |
+
+That's basically it.
+
+* Unicode Encodings
+
+This is the fun part. Encoding is basically a way to represent a unicode
+character in memory or on disk.
+
+So, think of encoding as a function that takes a series of characters
+(i.e., a String), and returns a byte array. Decoding does the reverse.
+
+#+BEGIN_SRC java
+
+  public interface Encoding {
+      byte[] encode(String inputString);
+      String decode(byte[] inputBytes);
+  }
+
+#+END_SRC
+
+UTF-8 is an encoding. UT8-16 is another encoding. There are many types of encodings.
+
+Please note that the byte array itself may not have any indication of which encoding is being used. We will come back to this point later.
+
+
+** UTF-8
+
+UTF-8 is a great hack. I love UTF-8.
+
+- UTF-8 is a variable length encoding
+
+  What this means is that each unicode character may take 1 byte to represent, or it may take 2, 3 or even 4 bytes. 
+
+  This means that the length of the byte array is not the length of the string!
+
+- UTF-8 is compatible with ASCII.
+
+  So, all ASCII characters are represented in 1 byte, with the same byte value.
+
+  This makes it backwards compatible with a lot of systems, and also saves memory / disk space if your text contains english predominantly.
+
+** UTF-16 (and UCS-2)
+
+When they introduced unicode, they thought 2 bytes (65,536 characters)
+would be more than enough. This was wrong. There are more than 65,536
+characters in unicode right now.
+
+The initial unicode encoding, UCS-2, only supports characters from
+0x0000 to 0xFFFF. It does not support full unicode.
+
+UTF-16 was developed as a replacement for UCS-2.
+
+UTF-16 is variable length. By default, each character is 2 bytes. But
+characters whose code point is larger than 0xFFFF can still be
+presented using four bytes.
+
+Java uses UTF-16 internally (in-memory) to represent all strings.
+
+* Fonts
+
+Fonts are used to render characters to screen (or print).
+
+You might have done the right thing in your files (used the right
+encoding and right characters). There is no guarantee that it will be
+displayed properly though — the font defines how a character will be
+rendered, and all fonts do not support all characters.
+
+For example, this used to be a problem with the Indian Rupee Sign ₹.
+
+When it was introduced, most fonts did not have support, so people used
+images and other hacks to get around it. Situation is pretty good now,
+but if you still have users who have very old operating systems (Xp :P),
+they would not be able to show this symbol.
+
+* Some implications
+
+** Wrong encoding being picked up
+
+This is the absolute most common issue you'll see. Open a page, and you see random characters.
+
+[[./bad-encoding.png]]
+
+This is because there was no encoding defined (or the wrong encoding was defined).
+
+Example files: [[file:bad-encoding.html][bad-encoding.html]], [[file:good-encoding.html][good-encoding.html]]
+
+To prevent:
+
+- Be very clear when you read data from user. Whether it's a form submit, a REST API, or reading files, you need to know what the input encoding it.
+- Always, always use utf-8. Normalize user input to utf-8 and store it. Respond to user with utf-8 always.
+- Servers should define response content type in the HTTP Response (most frameworks will do this automatically)
+- HTML pages should define content type in the HTML body (default is UTF-8, so you only need to define if the body is *not* UTF-8)
+- Be careful about mixing encodings! *Just use utf-8*.
+
+** Language specific quirks
+
+This is a fun little exercise. What should happen if I run this piece of JS code?
+
+#+BEGIN_SRC js
+
+  console.log("Length of µ is ", 'µ'.length);
+  console.log('Length of 😞 is ', '😞'.length);
+
+#+END_SRC
+
+How about Python?
+
+#+BEGIN_SRC python
+  # coding=utf-8
+  print("Len of µ is %d" % (len("µ")))
+  print("Len of 😞 is %d" % (len("😞")))
+#+END_SRC
+
+#+RESULTS:
+
+How about F#?
+
+#+BEGIN_SRC fsharp
+  printfn "Len of µ is %d" "µ".Length
+  printfn "Len of 😞 is %d" "😞".Length
+#+END_SRC
+
+Something as simple as getting the length of a string will give you different results in different languages.
+
+There are tons of different quirks like this. You need to understand how the language you work with deals with unicode.
+
+It's a complex enough topic that python made backwards incompatible changes (python3) in order to properly support unicode!
+
+** Language and platform specific quirks
+
+One example here is UTF-8 [[https://en.wikipedia.org/wiki/Byte_order_mark][Byte Order Mark]].
+
+It's added to the start of files by some programs (and some operating systems) to indicate that it contains unicode data, in either UTF-8 or UTF-16 format.
+
+It's the character U+FEFF.
+
+- In UTF-8, it's represented by 3 bytes: 0xEF, 0xBB, 0xBF
+- In UTF-16, it's represented on-disk as 0xFE 0xFF (big-endian) or 0xFF 0xFE (little-endian)
+
+Unfortunately, it is often missing, or present but with wrong values. Some tools do not understand it, some tools add it without asking, etc.
+
+It's not recommended to use the BOM, but you may need to deal with it.
+
+** Regexes
+
+Your regex may not always work. Try to use [[https://msdn.microsoft.com/en-us/library/20bw873z(v%3Dvs.110).aspx][pre-defined character classes]]
+instead of enumerating characters yourself. But be aware that different
+languages have different ways to deal with this, and unicode support in
+regex is not great for languages like JavaScript.
+
+** Security
+
+Example: You might think that you're clicking on a link to
+wikipedia.org, but you're actually clicking on a link to wikipediа.org.
+
+Thankfully, browsers deal with this type of attack.
+
+Any place where there is a manual judgement involved is vulnerable to
+this type of attack though.
+
+** Practical example
+*** Normalization
+
+While parsing form-16, we need to normalize all unicode spaces, hyphens, etc to make it easy to parse.
+
+We chose the option of converting unicode characters to equivalent ASCII and then parsing, instead of making entire parser aware of unicode.
+
+*** Full text search
+
+If you search for 'fiance', you should also get results if the text contains 'fiancé'
+
+This is a hard problem.
+
+Full-text search databases have to deal with unicode and they have to
+normalize text in order to give you good search results. Naïve
+implementations will fail.
+
+*** Sorting & Collation
+    Another hard problem. There are standards to deal with this.
+
+* Some +weird+ interesting topics
+
+** Ligatures
+
+   Combining characters to a single displayed glyph. Obviously, required
+   for languages like Hindi. But there are places where even english has
+   ligatures (for typographic & stylistic purposes).
+
+   Example:
+
+   | Letters               | स ् क ू ल |
+   | Letters without space | स्कूल     |
+
+   What would this show?
+
+   #+BEGIN_SRC js
+   return "स्कूल".length;
+   #+END_SRC
+
+   (Whether it's correct or not, I leave it to you to discuss!)
+
+** Flags
+
+   Unicode has flags. 
+
+   🇮🇳
+
+   This flag is created from two characters: 🇮 🇳 (India's country code).
+   When taken together, this becomes the flag.
+
+   This is an interesting trade-off: there is no character for the Indian
+   flag, but fonts define ligatures for IN (in that unicode sequence) to
+   map it to the Indian flag.
+
+** Box Drawing
+
+   There are a bunch of [[https://en.wikipedia.org/wiki/Box_Drawing][characters]] that are designed for drawing boxes.
+
+   Here's an example drawing (from [[https://en.wikipedia.org/wiki/Box-drawing_character][wikipedia]])
+
+   #+BEGIN_EXAMPLE
+┌─┬┐  ╔═╦╗  ╓─╥╖  ╒═╤╕
+│ ││  ║ ║║  ║ ║║  │ ││
+├─┼┤  ╠═╬╣  ╟─╫╢  ╞═╪╡
+└─┴┘  ╚═╩╝  ╙─╨╜  ╘═╧╛
+┌───────────────────┐
+│  ╔═══╗ Some Text  │▒
+│  ╚═╦═╝ in the box │▒
+╞═╤══╩══╤═══════════╡▒
+│ ├──┬──┤           │▒
+│ └──┴──┘           │▒
+└───────────────────┘▒
+ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒   
+   #+END_EXAMPLE
+
+* References
+
+Unicode is crazy, but it works. That it works at all is a miracle.
+
+This talk was just a very very brief overview. If you're curious, there
+are tons of resources on the internet.
+
+- https://www.joelonsoftware.com/2003/10/08/the-absolute-minimum-every-software-developer-absolutely-positively-must-know-about-unicode-and-character-sets-no-excuses/
+
+  Classic blog post
+
+- http://www.copypastecharacter.com/
+  
+  Fun website where you can see random unicode characters
+
+- http://chardet.readthedocs.io/en/latest/faq.html
+
+  chardet is a python library that can 'guess' the encoding of a input stream of bytes.
+
+  There are ports for other languages. Use only when dealing with unstructured data or third party sources!
+
+- https://speakerdeck.com/mathiasbynens/hacking-with-unicode-in-2016
+
+  Very interesting presentation on unicode related security implications
+
+- http://blogs.technet.com/b/mmpc/archive/2011/08/10/can-we-believe-our-eyes.aspx
+
+  More security stuff with unicode
+
+- https://eev.ee/blog/2015/09/12/dark-corners-of-unicode/
+
+  Everything you know about text is wrong.
+
+- https://xkcd.com/1726/
+
