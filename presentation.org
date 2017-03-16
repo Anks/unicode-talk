@@ -65,7 +65,7 @@ which encoding is being used. We will come back to this point later.
 
 ** UTF-8
 
-qUTF-8 is a great hack. I love UTF-8.
+UTF-8 is a great hack. I love UTF-8.
 
 - UTF-8 is a variable length encoding
 
